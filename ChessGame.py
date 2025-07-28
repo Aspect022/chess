@@ -1,5 +1,6 @@
 import pygame as p
 import ChessEngine
+import ChessAI
 
 WIDTH = HEIGHT = 512
 DIMENSIONS = 8
@@ -15,14 +16,13 @@ p.display.set_caption("Chess Game")
 
 def loadImages():
     pieces = ['wp', 'wR', 'wN', 'wB', 'wQ', 'wK', 'bp', 'bR', 'bN', 'bB', 'bQ', 'bK' ]
-    for piece in pieces: 
+    for piece in pieces:
         IMAGES[piece] = p.transform.scale(p.image.load("D:/Coding/games/chess/images/" + piece + ".png"), (SQ_SIZE, SQ_SIZE))
 
-def main():
+def main(playerTwo):
     p.init()
     screen = p.display.set_mode((WIDTH, HEIGHT))
     clock = p.time.Clock()
-    screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
     validMoves = gs.getValidMoves()
     moveMade = False
@@ -32,12 +32,15 @@ def main():
     sqSelected = ()
     playerClicks = []
     gameOver = False
-    while running: 
+    playerOne = True # if a human is playing white, then this will be true
+
+    while running:
+        humanTurn = (gs.whiteToMove and playerOne) or (not gs.whiteToMove and playerTwo)
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not gameOver:
+                if not gameOver and humanTurn:
                     location = p.mouse.get_pos()
                     col = location[0]//SQ_SIZE
                     row = location[1]//SQ_SIZE
@@ -47,7 +50,7 @@ def main():
                     else:
                         sqSelected = (row, col)
                         playerClicks.append(sqSelected)
-                    if len(playerClicks) == 1 and (gs.board[row][col] == "--"): 
+                    if len(playerClicks) == 1 and (gs.board[row][col] == "--"):
                         sqSelected = ()
                         playerClicks = []
                     if len(playerClicks) == 2:
@@ -73,6 +76,12 @@ def main():
                     playerClicks = []
                     moveMade = False
                     animate = False
+        if not gameOver and not humanTurn:
+            AIMove = ChessAI.findBestMove(gs, validMoves)
+            gs.makeMove(AIMove)
+            moveMade = True
+            animate = True
+
         if moveMade:
             if animate:
                 animatedMoves(gs.moveLog[-1], screen, gs.board,clock)
@@ -153,6 +162,57 @@ def drawText(screen, text):
     textObject = font.render(text, True, p.Color("Black"))
     screen.blit(textObject, textLocation.move(2,2))
 
+def drawHomeScreen(screen):
+    font = p.font.SysFont("Helvitca", 50, True, False)
+    textObject = font.render("Chess", True, p.Color('Black'))
+    textLocation = p.Rect(0, 0, WIDTH, HEIGHT).move(WIDTH/2 - textObject.get_width()/2, HEIGHT/4 - textObject.get_height()/2)
+    screen.blit(textObject, textLocation)
+
+    button_width = 200
+    button_height = 50
+    button_y = HEIGHT/2 - button_height/2
+
+    # Play with Human button
+    human_button = p.Rect(WIDTH/4 - button_width/2, button_y, button_width, button_height)
+    p.draw.rect(screen, p.Color('light gray'), human_button)
+    font = p.font.SysFont("Helvitca", 30, True, False)
+    textObject = font.render("Play with Human", True, p.Color('black'))
+    textLocation = human_button.move(button_width/2 - textObject.get_width()/2, button_height/2 - textObject.get_height()/2)
+    screen.blit(textObject, textLocation)
+
+    # Play with AI button
+    ai_button = p.Rect(3*WIDTH/4 - button_width/2, button_y, button_width, button_height)
+    p.draw.rect(screen, p.Color('light gray'), ai_button)
+    textObject = font.render("Play with AI", True, p.Color('black'))
+    textLocation = ai_button.move(button_width/2 - textObject.get_width()/2, button_height/2 - textObject.get_height()/2)
+    screen.blit(textObject, textLocation)
+
+    return human_button, ai_button
+
 
 if __name__ == "__main__":
-    main()
+    p.init()
+    screen = p.display.set_mode((WIDTH, HEIGHT))
+    clock = p.time.Clock()
+
+    playerOne = True # if a human is playing white, then this will be true
+    playerTwo = False # if a human is playing black, then this will be true
+
+    homeScreen = True
+    while homeScreen:
+        human_button, ai_button = drawHomeScreen(screen)
+        p.display.flip()
+        for e in p.event.get():
+            if e.type == p.QUIT:
+                p.quit()
+                quit()
+            if e.type == p.MOUSEBUTTONDOWN:
+                location = p.mouse.get_pos()
+                if human_button.collidepoint(location):
+                    playerTwo = True
+                    homeScreen = False
+                elif ai_button.collidepoint(location):
+                    playerTwo = False
+                    homeScreen = False
+
+    main(playerTwo)
